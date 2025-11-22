@@ -2,535 +2,460 @@ import pandas as pd
 import numpy as np
 
 # ============================================================================
-# CONFIGURATION - EDIT THIS SECTION
-# ============================================================================
-PLAYER_NAME = "Tyrese Maxey"
-# CSV File Settings
-CSV_PATH = "basketball_stats.csv"
-
-# Player Position: "PG", "SG", "SF", "PF", "C"
-POSITION = "SF"
-
-# ============================================================================
-# BETTING LINES - Only set lines for stats you want to analyze
-# Set to None if you don't want to analyze that stat
+# SETUP - Change these to match your needs
 # ============================================================================
 
-# POINT GUARD LINES
-PG_LINES = {
-    'points': 30.5,
-    'assists': 7.0,
+csv_file = "basketball_stats.csv"
+position = "C"  # PG, SG, SF, PF, or C
+
+# ============================================================================
+# BETTING LINES - Set to None if you don't want to bet on it
+# ============================================================================
+
+# Point Guard
+PG_lines = {
+    'points': 25.5,
+    'assists': 7.5,
     'rebounds': 4.5,
-    'three_pointers': 3.5,
-    'steals': 0.5,
-    'turnovers': 2.5,
-    'field_goal_attempts': 23.5,
-    'pts_reb_ast': 41.5,  # Combined stat
-    'pts_ast': 37.5,
-    'pts_reb': 34.5,
+    'three_pointers': 2.5,
+    'steals': 1.5,
+    'turnovers': 3.5,
+    'field_goal_attempts': 18.5,
+    'pts_reb_ast': 35.5,
+    'pts_ast': 30.5,
+    'pts_reb': 28.5,
     'reb_ast': 11.5,
 }
 
-# SHOOTING GUARD LINES
-SG_LINES = {
-    'points': 17.5,
-    'assists': 5.5,
-    'rebounds': 4.0,
-    'three_pointers': 3.0,
+# Shooting Guard
+SG_lines = {
+    'points': 22.5,
+    'assists': 4.5,
+    'rebounds': 4.5,
+    'three_pointers': 3.5,
     'steals': 1.5,
-    'turnovers': 1.5,
-    'field_goal_attempts': 14.5,
-    'pts_reb_ast': 27.5,
+    'turnovers': 2.5,
+    'field_goal_attempts': 16.5,
+    'pts_reb_ast': 32.5,
+    'pts_ast': 26.5,
+    'pts_reb': 26.5,
+    'reb_ast': 8.5,
+}
+
+# Small Forward
+SF_lines = {
+    'points': 20.5,
+    'assists': 3.5,
+    'rebounds': 6.5,
+    'three_pointers': 2.5,
+    'steals': 1.5,
+    'blocks': 0.5,
+    'turnovers': 2.5,
+    'field_goal_attempts': 15.5,
+    'pts_reb_ast': 30.5,
     'pts_ast': 23.5,
-    'pts_reb': 22.5,
+    'pts_reb': 26.5,
     'reb_ast': 9.5,
 }
 
-# SMALL FORWARD LINES
-SF_LINES = {
-    'points': 25.5,
-    'assists': 5.5,
-    'rebounds': 6.5,
-    'three_pointers': 3.5,
-    'steals': 1.5,
-    'blocks': 1.5,
-    'turnovers': None,
-    'field_goal_attempts': 17.5,
-    'pts_reb_ast': 38.5,
-    'pts_ast': 31.5,
-    'pts_reb': 32.5,
-    'reb_ast': 12.5,
-}
-
-# POWER FORWARD LINES
-PF_LINES = {
-    'points': 22.5,
-    'assists': 5.5,
-    'rebounds': 6.5,
+# Power Forward
+PF_lines = {
+    'points': 18.5,
+    'assists': 3.5,
+    'rebounds': 8.5,
     'three_pointers': 1.5,
-    'blocks': 0.5,
-    'steals': 1.5,
+    'blocks': 1.5,
+    'steals': 0.5,
     'turnovers': 2.5,
     'field_goal_attempts': 14.5,
-    'pts_reb_ast': 36.5,
-    'pts_ast': 28.5,
-    'pts_reb': 30.5,
+    'pts_reb_ast': 30.5,
+    'pts_ast': 21.5,
+    'pts_reb': 26.5,
+    'reb_ast': 11.5,
+}
+
+# Center
+C_lines = {
+    'points': 16.5,
+    'rebounds': 10.5,
+    'assists': 2.5,
+    'blocks': 2.5,
+    'steals': 0.5,
+    'turnovers': 2.5,
+    'field_goal_attempts': 12.5,
+    'pts_reb_ast': 29.5,
+    'pts_ast': 18.5,
+    'pts_reb': 26.5,
     'reb_ast': 12.5,
     'double_double': 0.5,
 }
 
-# CENTER LINES
-C_LINES = {
-    'points': 28.5,
-    'rebounds': 10.5,
-    'assists': 10.5,
-    'blocks': 1.5,
-    'steals': 1.5,
-    'turnovers': 2.5,
-    'field_goal_attempts': 17.5,
-    'pts_reb_ast': 51.5,
-    'pts_ast': 39.5,
-    'pts_reb': 41.5,
-    'reb_ast': 23.5,
-    'double_double': None,
+# ============================================================================
+# Column name mappings
+# ============================================================================
+
+columns = {
+    'points': ['PTS', 'pts', 'points'],
+    'assists': ['AST', 'ast', 'assists'],
+    'rebounds': ['REB', 'reb', 'rebounds', 'TRB'],
+    'three_pointers': ['3PT', '3P', '3PM'],
+    'steals': ['STL', 'stl', 'steals'],
+    'blocks': ['BLK', 'blk', 'blocks'],
+    'turnovers': ['TO', 'to', 'turnovers', 'TOV'],
+    'field_goal_attempts': ['FGA', 'fga'],
 }
 
-# ============================================================================
-# COLUMN MAPPINGS - Map your CSV columns to stat types
-# ============================================================================
-
-COLUMN_MAPPINGS = {
-    'points': ['PTS', 'pts', 'points', 'Points'],
-    'assists': ['AST', 'ast', 'assists', 'Assists'],
-    'rebounds': ['REB', 'reb', 'rebounds', 'Rebounds', 'TRB'],
-    'three_pointers': ['3PT', '3P', '3PM', 'threes', 'three_pointers'],
-    'steals': ['STL', 'stl', 'steals', 'Steals'],
-    'blocks': ['BLK', 'blk', 'blocks', 'Blocks'],
-    'turnovers': ['TO', 'to', 'turnovers', 'Turnovers', 'TOV'],
-    'field_goals': ['FG', 'fg', 'field_goals', 'FGM'],
-    'field_goal_attempts': ['FGA', 'fga', 'field_goal_attempts', 'fg_att'],
-    'free_throws': ['FT', 'ft', 'free_throws', 'FTM'],
-    'minutes': ['MIN', 'min', 'minutes', 'MP'],
-    'offensive_rebounds': ['OR', 'OREB', 'off_reb'],
-    'defensive_rebounds': ['DR', 'DREB', 'def_reb'],
-    'personal_fouls': ['PF', 'pf', 'fouls', 'personal_fouls'],
-}
+min_games = 5
+hit_rate_threshold = 0.60
 
 # ============================================================================
-# SETTINGS
-# ============================================================================
-THRESHOLD = 0.60  # Minimum hit rate for strong recommendation
-MIN_GAMES = 5
-CONFIDENCE_HIGH = 65
-CONFIDENCE_MEDIUM = 55
-
-# ============================================================================
-# ANALYSIS ENGINE
+# Helper functions
 # ============================================================================
 
-def find_column(df, possible_names):
-    """Find a column in the dataframe from a list of possible names."""
-    df_columns_lower = {col.lower(): col for col in df.columns}
-    for name in possible_names:
-        if name.lower() in df_columns_lower:
-            return df_columns_lower[name.lower()]
+def find_col(df, names):
+    cols = {c.lower(): c for c in df.columns}
+    for name in names:
+        if name.lower() in cols:
+            return cols[name.lower()]
     return None
 
-def calculate_combined_stats(df):
-    """Calculate combined stats like PTS+REB+AST."""
-    combined = {}
+def get_combo_stats(df):
+    combos = {}
     
-    # Find necessary columns
-    pts_col = find_column(df, COLUMN_MAPPINGS['points'])
-    reb_col = find_column(df, COLUMN_MAPPINGS['rebounds'])
-    ast_col = find_column(df, COLUMN_MAPPINGS['assists'])
+    pts_col = find_col(df, columns['points'])
+    reb_col = find_col(df, columns['rebounds'])
+    ast_col = find_col(df, columns['assists'])
     
-    # PTS + REB + AST
     if pts_col and reb_col and ast_col:
         pts = pd.to_numeric(df[pts_col], errors='coerce')
         reb = pd.to_numeric(df[reb_col], errors='coerce')
         ast = pd.to_numeric(df[ast_col], errors='coerce')
-        combined['pts_reb_ast'] = (pts + reb + ast).dropna().values
+        combos['pts_reb_ast'] = (pts + reb + ast).dropna().values
     
-    # PTS + AST
     if pts_col and ast_col:
         pts = pd.to_numeric(df[pts_col], errors='coerce')
         ast = pd.to_numeric(df[ast_col], errors='coerce')
-        combined['pts_ast'] = (pts + ast).dropna().values
+        combos['pts_ast'] = (pts + ast).dropna().values
     
-    # PTS + REB
     if pts_col and reb_col:
         pts = pd.to_numeric(df[pts_col], errors='coerce')
         reb = pd.to_numeric(df[reb_col], errors='coerce')
-        combined['pts_reb'] = (pts + reb).dropna().values
+        combos['pts_reb'] = (pts + reb).dropna().values
     
-    # REB + AST
     if reb_col and ast_col:
         reb = pd.to_numeric(df[reb_col], errors='coerce')
         ast = pd.to_numeric(df[ast_col], errors='coerce')
-        combined['reb_ast'] = (reb + ast).dropna().values
+        combos['reb_ast'] = (reb + ast).dropna().values
     
-    # Double-Double (10+ points and 10+ rebounds, or 10+ points and 10+ assists, etc.)
     if pts_col and reb_col:
         pts = pd.to_numeric(df[pts_col], errors='coerce')
         reb = pd.to_numeric(df[reb_col], errors='coerce')
         ast = pd.to_numeric(df[ast_col], errors='coerce') if ast_col else pd.Series([0] * len(df))
         
-        double_double = []
+        dd = []
         for i in range(len(df)):
-            stats_over_10 = 0
-            if pts.iloc[i] >= 10:
-                stats_over_10 += 1
-            if reb.iloc[i] >= 10:
-                stats_over_10 += 1
-            if ast.iloc[i] >= 10:
-                stats_over_10 += 1
-            double_double.append(1 if stats_over_10 >= 2 else 0)
+            count = 0
+            if pts.iloc[i] >= 10: count += 1
+            if reb.iloc[i] >= 10: count += 1
+            if ast.iloc[i] >= 10: count += 1
+            dd.append(1 if count >= 2 else 0)
         
-        combined['double_double'] = np.array(double_double)
+        combos['double_double'] = np.array(dd)
     
-    return combined
+    return combos
 
-def load_stats_from_csv(csv_path, lines_dict):
-    """Load stats from CSV based on the lines provided."""
+def load_data(file, lines):
     try:
-        df = pd.read_csv(csv_path)
-        print(f"✓ Loaded CSV with {len(df)} games")
-        print(f"✓ Available columns: {list(df.columns)}")
+        df = pd.read_csv(file)
+        print(f"✓ Loaded {len(df)} games")
+        print(f"✓ Columns: {list(df.columns)}")
         
-        stats_data = {}
+        data = {}
+        combos = get_combo_stats(df)
         
-        # Calculate combined stats first
-        combined_stats = calculate_combined_stats(df)
-        
-        for stat_name, line in lines_dict.items():
+        for stat, line in lines.items():
             if line is None:
                 continue
             
-            # Check if it's a combined stat
-            if stat_name in combined_stats:
-                data = combined_stats[stat_name]
-                if len(data) > 0:
-                    stats_data[stat_name] = {
-                        'data': data,
-                        'line': line,
-                        'column': f'{stat_name} (calculated)'
-                    }
-                    print(f"✓ Calculated '{stat_name}' ({len(data)} games)")
+            if stat in combos:
+                vals = combos[stat]
+                if len(vals) > 0:
+                    data[stat] = {'values': vals, 'line': line, 'col': f'{stat} (calc)'}
+                    print(f"✓ Calculated '{stat}' ({len(vals)} games)")
                 continue
             
-            # Find the column in the CSV
-            possible_columns = COLUMN_MAPPINGS.get(stat_name, [stat_name])
-            col_name = find_column(df, possible_columns)
+            names = columns.get(stat, [stat])
+            col = find_col(df, names)
             
-            if col_name:
-                # Convert to numeric and remove invalid entries
-                data = pd.to_numeric(df[col_name], errors='coerce')
-                data = data.dropna().values
-                
-                if len(data) > 0:
-                    stats_data[stat_name] = {
-                        'data': data,
-                        'line': line,
-                        'column': col_name
-                    }
-                    print(f"✓ Found '{stat_name}' in column '{col_name}' ({len(data)} games)")
-                else:
-                    print(f"⚠ Column '{col_name}' exists but has no valid data")
+            if col:
+                vals = pd.to_numeric(df[col], errors='coerce').dropna().values
+                if len(vals) > 0:
+                    data[stat] = {'values': vals, 'line': line, 'col': col}
+                    print(f"✓ Found '{stat}' in '{col}' ({len(vals)} games)")
             else:
-                print(f"✗ Could not find '{stat_name}' in CSV")
+                print(f"✗ Couldn't find '{stat}'")
         
-        return stats_data, df
+        return data
     
-    except FileNotFoundError:
-        print(f"❌ Error: File '{csv_path}' not found")
-        return None, None
     except Exception as e:
-        print(f"❌ Error loading CSV: {e}")
-        return None, None
+        print(f"❌ Error: {e}")
+        return None
 
-class StatAnalyzer:
-    def __init__(self, data, line, stat_name):
-        self.data = np.array(data)
+# ============================================================================
+# Analysis class
+# ============================================================================
+
+class Analyzer:
+    def __init__(self, values, line, name):
+        self.values = np.array(values)
         self.line = line
-        self.stat_name = stat_name
-        self.games = len(data)
-        
-    def calculate_basic_stats(self):
+        self.name = name
+        self.games = len(values)
+    
+    def stats(self):
         return {
             'games': self.games,
-            'avg': float(np.mean(self.data)),
-            'median': float(np.median(self.data)),
-            'max': float(np.max(self.data)),
-            'min': float(np.min(self.data)),
-            'std': float(np.std(self.data)),
+            'avg': float(np.mean(self.values)),
+            'median': float(np.median(self.values)),
+            'max': float(np.max(self.values)),
+            'min': float(np.min(self.values)),
+            'std': float(np.std(self.values)),
         }
     
-    def calculate_hit_rate(self):
-        hits = int(np.sum(self.data > self.line))
-        pushes = int(np.sum(self.data == self.line))
-        misses = int(np.sum(self.data < self.line))
-        hit_rate = hits / self.games if self.games > 0 else 0
-        return hits, pushes, misses, hit_rate
+    def hit_rate(self):
+        over = int(np.sum(self.values > self.line))
+        push = int(np.sum(self.values == self.line))
+        under = int(np.sum(self.values < self.line))
+        rate = over / self.games if self.games > 0 else 0
+        return over, push, under, rate
     
-    def analyze_recent(self, n_games):
-        if self.games < n_games:
+    def recent(self, n):
+        if self.games < n:
             return None
         
-        recent = self.data[-n_games:]
-        weights = np.exp(np.linspace(0, 1, n_games))
-        weights = weights / weights.sum()
+        last = self.values[-n:]
+        w = np.exp(np.linspace(0, 1, n))
+        w = w / w.sum()
         
         return {
-            'simple_avg': float(np.mean(recent)),
-            'weighted_avg': float(np.average(recent, weights=weights)),
-            'hit_rate': float(np.sum(recent > self.line) / n_games)
+            'avg': float(np.mean(last)),
+            'weighted': float(np.average(last, weights=w)),
+            'rate': float(np.sum(last > self.line) / n)
         }
     
-    def calculate_trend(self, n_games):
-        if self.games < n_games:
+    def trend(self, n):
+        if self.games < n:
             return None
-        recent = self.data[-n_games:]
-        x = np.arange(len(recent))
-        slope = np.polyfit(x, recent, 1)[0]
-        return float(slope)
+        last = self.values[-n:]
+        x = np.arange(len(last))
+        return float(np.polyfit(x, last, 1)[0])
     
-    def calculate_streak(self):
-        """Calculate current streak over/under the line."""
-        over = (self.data > self.line).astype(int)
+    def streak(self):
+        over = (self.values > self.line).astype(int)
+        length = 0
+        direction = None
         
-        # Current streak
-        current_streak = 0
-        streak_type = None
         for val in reversed(over):
-            if current_streak == 0:
-                current_streak = 1
-                streak_type = 'OVER' if val == 1 else 'UNDER'
-            elif (val == 1 and streak_type == 'OVER') or (val == 0 and streak_type == 'UNDER'):
-                current_streak += 1
+            if length == 0:
+                length = 1
+                direction = 'OVER' if val == 1 else 'UNDER'
+            elif (val == 1 and direction == 'OVER') or (val == 0 and direction == 'UNDER'):
+                length += 1
             else:
                 break
         
-        return current_streak, streak_type
+        return length, direction
     
-    def calculate_confidence(self, hit_rate, recent_hit_rate):
-        confidence = 50
-        confidence += (hit_rate - 0.5) * 40
+    def confidence(self, rate, recent_rate):
+        score = 50
+        score += (rate - 0.5) * 40
         
-        if recent_hit_rate is not None:
-            confidence += (recent_hit_rate - 0.5) * 30
+        if recent_rate is not None:
+            score += (recent_rate - 0.5) * 30
         
         if self.games >= 15:
-            confidence += 10
+            score += 10
         elif self.games >= 10:
-            confidence += 5
-        elif self.games < MIN_GAMES:
-            confidence -= 15
+            score += 5
+        elif self.games < min_games:
+            score -= 15
         
-        stats = self.calculate_basic_stats()
-        cv = stats['std'] / stats['avg'] if stats['avg'] > 0 else 0
+        s = self.stats()
+        cv = s['std'] / s['avg'] if s['avg'] > 0 else 0
         if cv < 0.2:
-            confidence += 10
+            score += 10
         elif cv > 0.4:
-            confidence -= 10
+            score -= 10
         
-        line_distance = abs(stats['avg'] - self.line) / self.line if self.line > 0 else 0
-        if line_distance > 0.15:
-            confidence += 5
+        dist = abs(s['avg'] - self.line) / self.line if self.line > 0 else 0
+        if dist > 0.15:
+            score += 5
         
-        return max(0, min(100, confidence))
+        return max(0, min(100, score))
     
-    def calculate_ev(self, hit_rate, odds=-110):
-        if odds < 0:
-            win_amount = 100 / abs(odds)
-        else:
-            win_amount = odds / 100
-        ev = (hit_rate * win_amount) - ((1 - hit_rate) * 1)
-        return ev * 100
+    def ev(self, rate):
+        win = 100 / 110
+        return (rate * win - (1 - rate) * 1) * 100
     
-    def make_decision(self, hit_rate, confidence, ev, recent_hit_rate):
-        if self.games < MIN_GAMES:
-            return "NO BET", f"Need {MIN_GAMES}+ games", 0
+    def decide(self, rate, conf, ev, recent_rate):
+        if self.games < min_games:
+            return "NO BET", f"Need {min_games}+ games", 0
         
         signals = 0
-        total_signals = 4
+        total = 4
         
-        if hit_rate >= THRESHOLD:
+        if rate >= hit_rate_threshold:
             signals += 1
-        
-        if recent_hit_rate is not None:
-            if recent_hit_rate > 0.55:
+        if recent_rate is not None:
+            if recent_rate > 0.55:
                 signals += 1
         else:
-            total_signals -= 1
-        
+            total -= 1
         if ev > 2:
             signals += 1
-        
-        if confidence >= CONFIDENCE_MEDIUM:
+        if conf >= 55:
             signals += 1
         
-        if signals >= total_signals - 1 and confidence >= CONFIDENCE_MEDIUM:
-            recommendation = "BET OVER" if hit_rate >= THRESHOLD else "BET UNDER"
-            reason = f"Strong edge ({signals}/{total_signals} signals)"
-            strength = confidence
-        elif signals >= total_signals - 2 and confidence >= CONFIDENCE_MEDIUM - 10:
-            recommendation = "LEAN OVER" if hit_rate >= THRESHOLD else "LEAN UNDER"
-            reason = f"Moderate edge ({signals}/{total_signals} signals)"
-            strength = confidence
+        if signals >= total - 1 and conf >= 55:
+            bet = "BET OVER" if rate >= hit_rate_threshold else "BET UNDER"
+            reason = f"Strong ({signals}/{total} signals)"
+            strength = conf
+        elif signals >= total - 2 and conf >= 45:
+            bet = "LEAN OVER" if rate >= hit_rate_threshold else "LEAN UNDER"
+            reason = f"Moderate ({signals}/{total} signals)"
+            strength = conf
         else:
-            recommendation = "NO BET"
-            reason = f"Weak edge ({signals}/{total_signals} signals)"
+            bet = "NO BET"
+            reason = f"Weak ({signals}/{total} signals)"
             strength = 0
         
-        return recommendation, reason, strength
+        return bet, reason, strength
     
-    def full_analysis(self):
-        stats = self.calculate_basic_stats()
-        hits, pushes, misses, hit_rate = self.calculate_hit_rate()
+    def analyze(self):
+        s = self.stats()
+        over, push, under, rate = self.hit_rate()
+        last3 = self.recent(3)
+        last5 = self.recent(5)
+        t = self.trend(5)
+        streak_len, streak_dir = self.streak()
         
-        last3 = self.analyze_recent(3)
-        last5 = self.analyze_recent(5)
-        
-        trend5 = self.calculate_trend(5)
-        streak_count, streak_type = self.calculate_streak()
-        
-        recent_hr = last5['hit_rate'] if last5 else None
-        confidence = self.calculate_confidence(hit_rate, recent_hr)
-        ev = self.calculate_ev(hit_rate)
-        
-        decision, reason, strength = self.make_decision(hit_rate, confidence, ev, recent_hr)
+        recent_rate = last5['rate'] if last5 else None
+        conf = self.confidence(rate, recent_rate)
+        ev = self.ev(rate)
+        decision, reason, strength = self.decide(rate, conf, ev, recent_rate)
         
         return {
-            'stats': stats,
-            'hits': hits,
-            'pushes': pushes,
-            'misses': misses,
-            'hit_rate': hit_rate,
-            'last3': last3,
-            'last5': last5,
-            'trend5': trend5,
-            'streak_count': streak_count,
-            'streak_type': streak_type,
-            'confidence': confidence,
-            'ev': ev,
-            'decision': decision,
-            'reason': reason,
-            'strength': strength
+            'stats': s, 'over': over, 'push': push, 'under': under, 'rate': rate,
+            'last3': last3, 'last5': last5, 'trend': t, 
+            'streak_len': streak_len, 'streak_dir': streak_dir,
+            'conf': conf, 'ev': ev, 'decision': decision, 'reason': reason, 'strength': strength
         }
 
-def print_stat_analysis(stat_name, results, line):
-    """Print analysis for a single stat."""
+def show_results(name, r, line):
     print("\n" + "="*70)
-    print(f"{stat_name.upper().replace('_', ' '):^70}")
+    print(f"{name.upper().replace('_', ' '):^70}")
     print("="*70)
     
-    stats = results['stats']
+    s = r['stats']
     print(f"\n📊 LINE: {line}")
-    print(f"🎮 GAMES: {stats['games']}")
+    print(f"🎮 GAMES: {s['games']}")
     
-    print(f"\n{'STATISTICS':-^70}")
-    print(f"Average:           {stats['avg']:.2f}")
-    print(f"Median:            {stats['median']:.2f}")
-    print(f"Range:             {stats['min']:.2f} - {stats['max']:.2f}")
-    print(f"Std Deviation:     {stats['std']:.2f}")
+    print(f"\n{'STATS':-^70}")
+    print(f"Average:           {s['avg']:.2f}")
+    print(f"Median:            {s['median']:.2f}")
+    print(f"Range:             {s['min']:.2f} - {s['max']:.2f}")
+    print(f"Std Dev:           {s['std']:.2f}")
     
     print(f"\n{'HIT RATE':-^70}")
-    print(f"Hits over {line}:     {results['hits']} ({results['hit_rate']:.1%})")
-    print(f"Pushes at {line}:     {results['pushes']}")
-    print(f"Misses under {line}:  {results['misses']} ({results['misses']/stats['games']:.1%})")
-    print(f"Current Streak:    {results['streak_count']} games {results['streak_type']}")
+    print(f"Over {line}:          {r['over']} ({r['rate']:.1%})")
+    print(f"Push at {line}:       {r['push']}")
+    print(f"Under {line}:         {r['under']} ({r['under']/s['games']:.1%})")
+    print(f"Streak:            {r['streak_len']} games {r['streak_dir']}")
     
-    if results['last3']:
-        print(f"\n{'LAST 3 GAMES':-^70}")
-        print(f"Average:           {results['last3']['simple_avg']:.2f}")
-        print(f"Weighted Avg:      {results['last3']['weighted_avg']:.2f}")
-        print(f"Hit Rate:          {results['last3']['hit_rate']:.1%}")
+    if r['last3']:
+        print(f"\n{'LAST 3':-^70}")
+        print(f"Average:           {r['last3']['avg']:.2f}")
+        print(f"Weighted:          {r['last3']['weighted']:.2f}")
+        print(f"Hit Rate:          {r['last3']['rate']:.1%}")
     
-    if results['last5']:
-        print(f"\n{'LAST 5 GAMES':-^70}")
-        print(f"Average:           {results['last5']['simple_avg']:.2f}")
-        print(f"Weighted Avg:      {results['last5']['weighted_avg']:.2f}")
-        print(f"Hit Rate:          {results['last5']['hit_rate']:.1%}")
+    if r['last5']:
+        print(f"\n{'LAST 5':-^70}")
+        print(f"Average:           {r['last5']['avg']:.2f}")
+        print(f"Weighted:          {r['last5']['weighted']:.2f}")
+        print(f"Hit Rate:          {r['last5']['rate']:.1%}")
     
-    if results['trend5'] is not None:
-        trend_dir = "↗️ Up" if results['trend5'] > 0 else "↘️ Down"
+    if r['trend'] is not None:
+        direction = "↗️ Up" if r['trend'] > 0 else "↘️ Down"
         print(f"\n{'TREND':-^70}")
-        print(f"5-Game Trend:      {trend_dir} ({results['trend5']:+.2f} per game)")
+        print(f"5-Game:            {direction} ({r['trend']:+.2f} per game)")
     
     print(f"\n{'METRICS':-^70}")
-    print(f"Confidence:        {results['confidence']:.0f}/100")
-    print(f"Expected Value:    {results['ev']:+.2f}%")
+    print(f"Confidence:        {r['conf']:.0f}/100")
+    print(f"Expected Value:    {r['ev']:+.2f}%")
     
-    print(f"\n{'RECOMMENDATION':-^70}")
-    color = "🟢" if "BET" in results['decision'] and "NO" not in results['decision'] else "🟡" if "LEAN" in results['decision'] else "🔴"
-    print(f"{color} {results['decision']}")
-    print(f"📝 {results['reason']}")
-    if results['strength'] > 0:
-        print(f"💪 Strength: {results['strength']:.0f}/100")
+    print(f"\n{'CALL':-^70}")
+    emoji = "🟢" if "BET" in r['decision'] and "NO" not in r['decision'] else "🟡" if "LEAN" in r['decision'] else "🔴"
+    print(f"{emoji} {r['decision']}")
+    print(f"📝 {r['reason']}")
+    if r['strength'] > 0:
+        print(f"💪 {r['strength']:.0f}/100")
 
 # ============================================================================
-# RUN ANALYSIS
+# Run it
 # ============================================================================
 
-# Select lines based on position
-if POSITION == "PG":
-    selected_lines = PG_LINES
-elif POSITION == "SG":
-    selected_lines = SG_LINES
-elif POSITION == "SF":
-    selected_lines = SF_LINES
-elif POSITION == "PF":
-    selected_lines = PF_LINES
-elif POSITION == "C":
-    selected_lines = C_LINES
+if position == "PG":
+    lines = PG_lines
+elif position == "SG":
+    lines = SG_lines
+elif position == "SF":
+    lines = SF_lines
+elif position == "PF":
+    lines = PF_lines
+elif position == "C":
+    lines = C_lines
 else:
-    print(f"❌ Invalid position: {POSITION}")
-    print("Valid positions: PG, SG, SF, PF, C")
+    print(f"❌ Bad position: {position}")
     exit()
 
 print("\n" + "="*70)
-print(f"{'BASKETBALL BETTING ANALYSIS':^70}")
-print(f"{POSITION + ' POSITION':^70}")
+print(f"{'BASKETBALL BETTING ANALYZER':^70}")
+print(f"{position:^70}")
 print("="*70 + "\n")
 
-# Load stats from CSV
-stats_data, df = load_stats_from_csv(CSV_PATH, selected_lines)
-
-if not stats_data:
-    print("\n❌ No valid stats found to analyze")
+data = load_data(csv_file, lines)
+if not data:
+    print("\n❌ No data")
     exit()
 
-# Analyze each available stat
 print("\n" + "="*70)
-print("ANALYZING STATS...")
+print("ANALYZING...")
 print("="*70)
 
-recommendations = []
-for stat_name, stat_info in stats_data.items():
-    analyzer = StatAnalyzer(stat_info['data'], stat_info['line'], stat_name)
-    results = analyzer.full_analysis()
-    print_stat_analysis(stat_name, results, stat_info['line'])
+bets = []
+for name, info in data.items():
+    a = Analyzer(info['values'], info['line'], name)
+    r = a.analyze()
+    show_results(name, r, info['line'])
     
-    if results['decision'] != "NO BET":
-        recommendations.append({
-            'stat': stat_name.replace('_', ' ').title(),
-            'decision': results['decision'],
-            'confidence': results['confidence'],
-            'hit_rate': results['hit_rate'],
-            'ev': results['ev']
+    if r['decision'] != "NO BET":
+        bets.append({
+            'name': name.replace('_', ' ').title(),
+            'decision': r['decision'],
+            'conf': r['conf'],
+            'rate': r['rate'],
+            'ev': r['ev']
         })
 
-# Summary
-if recommendations:
+if bets:
     print("\n" + "="*70)
-    print(f"{'SUMMARY - ALL RECOMMENDATIONS':^70}")
-    print(PLAYER_NAME)
+    print(f"{'SUMMARY':^70}")
     print("="*70)
     
-    recommendations.sort(key=lambda x: x['confidence'], reverse=True)
+    bets.sort(key=lambda x: x['conf'], reverse=True)
     
-    for rec in recommendations:
-        emoji = "🟢" if "BET" in rec['decision'] else "🟡"
-        print(f"{emoji} {rec['stat']}: {rec['decision']}")
-        print(f"   Confidence: {rec['confidence']:.0f}/100 | Hit Rate: {rec['hit_rate']:.1%} | EV: {rec['ev']:+.1f}%")
+    for b in bets:
+        emoji = "🟢" if "BET" in b['decision'] else "🟡"
+        print(f"{emoji} {b['name']}: {b['decision']}")
+        print(f"   Conf: {b['conf']:.0f} | Rate: {b['rate']:.1%} | EV: {b['ev']:+.1f}%")
+        print()
